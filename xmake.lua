@@ -4,12 +4,24 @@ set_version("1.0.0")
 add_rules("mode.debug", "mode.release", "plugin.compile_commands.autoupdate")
 
 target("BuckshotRouletteTool")
+    set_languages("c++23")
     add_rules("qt.widgetapp")
+    add_frameworks("QtCore", "QtGui", "QtWidgets")
     add_includedirs("src/")
     set_configdir("gen/config")
     add_includedirs("gen/config")
     add_configfiles("version.h.in")
     add_files("src/*.cpp")
+    add_files("src/bullettracker.h")
+    add_files("src/itemmanager.h") 
+    add_files("src/decisionhelper.h")
+    add_files("src/main.h")
+    add_headerfiles("src/*.h")
+    
+    -- 添加UTF-8编译选项
+    if is_plat("windows") then
+        add_cxflags("/utf-8")
+    end
 
 
     -- 构建后自动调用 windeployqt 部署 Qt 依赖

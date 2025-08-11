@@ -23,6 +23,7 @@
 #include "itemmanager.h"
 #include "decisionhelper.h"
 #include "bullettypewidget.h"
+#include "aisettings.h"
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -39,12 +40,16 @@ private slots:
     void onCalculateProbability();
     void onGetDecisionAdvice();
     void onRandomChoice();
+    void onAISettingsClicked();
+    void onAIAdviceReceived(const QString &advice);
+    void onAIRequestStarted();
+    void onAIRequestFinished();
+    void onAIError(const QString &error);
 
 private:
     void setupUI();
     void setupBulletTracker();
     void setupItemManager();
-    void setupDecisionHelper();
     void updateDisplay();
     void updateProbability();
     void updateItemLists();
@@ -70,15 +75,15 @@ private:
     QTableWidget *m_knownBulletsTable;
     QPushButton *m_addKnownButton;
     
-    // 道具管理标签页
+    // 信息记录标签页
     QWidget *m_itemTab;
+    QSpinBox *m_playerHealthSpinBox;
+    QSpinBox *m_dealerHealthSpinBox;
     QGroupBox *m_playerItemsGroup;
     QGroupBox *m_dealerItemsGroup;
     QListWidget *m_playerItemsList;
     QListWidget *m_dealerItemsList;
-    
-    // 决策建议标签页
-    QWidget *m_adviceTab;
+    QPushButton *m_aiSettingsButton;
     QTextEdit *m_adviceTextEdit;
     QPushButton *m_getAdviceButton;
     

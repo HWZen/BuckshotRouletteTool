@@ -1,11 +1,13 @@
 #include "main.h"
 #include "version.h"
 #include "bullettypewidget.h"
+#include "aisettings.h"
 #include <QApplication>
 #include <QMessageBox>
 #include <QHeaderView>
 #include <QTimer>
 #include <QDebug>
+#include <QSettings>
 #include <random>
 
 // MainWindow实现
@@ -31,6 +33,16 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_bulletTracker, &BulletTracker::probabilityChanged, 
             this, &MainWindow::updateProbability);
     
+    // 连接AI信号
+    connect(m_decisionHelper, &DecisionHelper::aiAdviceReceived,
+            this, &MainWindow::onAIAdviceReceived);
+    connect(m_decisionHelper, &DecisionHelper::aiRequestStarted,
+            this, &MainWindow::onAIRequestStarted);
+    connect(m_decisionHelper, &DecisionHelper::aiRequestFinished,
+            this, &MainWindow::onAIRequestFinished);
+    connect(m_decisionHelper, &DecisionHelper::aiError,
+            this, &MainWindow::onAIError);
+    
     setupUI();
     updateDisplay();
 }
@@ -50,7 +62,6 @@ void MainWindow::setupUI()
     
     setupBulletTracker();
     setupItemManager();
-    setupDecisionHelper();
     
     // 添加重置按钮
     QPushButton *resetButton = new QPushButton("重置游戏");
@@ -175,9 +186,34 @@ void MainWindow::setupBulletTracker()
 void MainWindow::setupItemManager()
 {
     m_itemTab = new QWidget;
-    m_tabWidget->addTab(m_itemTab, "道具管理");
+    m_tabWidget->addTab(m_itemTab, "信息记录");
     
-    QHBoxLayout *itemLayout = new QHBoxLayout(m_itemTab);
+    QVBoxLayout *mainLayout = new QVBoxLayout(m_itemTab);
+    
+    // 血量记录区域
+    QGroupBox *healthGroup = new QGroupBox("血量记录");
+    QGridLayout *healthLayout = new QGridLayout(healthGroup);
+    
+    // 玩家血量
+    healthLayout->addWidget(new QLabel("玩家血量:"), 0, 0);
+    m_playerHealthSpinBox = new QSpinBox;
+    m_playerHealthSpinBox->setRange(0, 10);
+    m_playerHealthSpinBox->setValue(3);
+    m_playerHealthSpinBox->setStyleSheet("QSpinBox { font-weight: bold; color: #28a745; }");
+    healthLayout->addWidget(m_playerHealthSpinBox, 0, 1);
+    
+    // 庄家血量
+    healthLayout->addWidget(new QLabel("庄家血量:"), 1, 0);
+    m_dealerHealthSpinBox = new QSpinBox;
+    m_dealerHealthSpinBox->setRange(0, 10);
+    m_dealerHealthSpinBox->setValue(3);
+    m_dealerHealthSpinBox->setStyleSheet("QSpinBox { font-weight: bold; color: #dc3545; }");
+    healthLayout->addWidget(m_dealerHealthSpinBox, 1, 1);
+    
+    mainLayout->addWidget(healthGroup);
+    
+    // 道具管理区域
+    QHBoxLayout *itemLayout = new QHBoxLayout;
     
     // 道具按钮数据结构
     struct ItemButtonInfo {
@@ -326,20 +362,34 @@ void MainWindow::setupItemManager()
     
     itemLayout->addWidget(m_playerItemsGroup);
     itemLayout->addWidget(m_dealerItemsGroup);
-}
-
-void MainWindow::setupDecisionHelper()
-{
-    m_adviceTab = new QWidget;
-    m_tabWidget->addTab(m_adviceTab, "决策建议");
-    QVBoxLayout *adviceLayout = new QVBoxLayout(m_adviceTab);
-    m_getAdviceButton = new QPushButton("获取AI建议");
+    
+    mainLayout->addLayout(itemLayout);
+    
+    // 决策建议区域
+    QGroupBox *adviceGroup = new QGroupBox("AI决策建议");
+    QVBoxLayout *adviceLayout = new QVBoxLayout(adviceGroup);
+    
+    // 按钮区域
+    QHBoxLayout *buttonLayout = new QHBoxLayout;
+    
+    m_getAdviceButton = new QPushButton("🤖 获取AI建议");
     m_getAdviceButton->setStyleSheet("QPushButton { background-color: #51cf66; color: white; font-weight: bold; padding: 10px; }");
     connect(m_getAdviceButton, &QPushButton::clicked, this, &MainWindow::onGetDecisionAdvice);
-    adviceLayout->addWidget(m_getAdviceButton);
+    buttonLayout->addWidget(m_getAdviceButton);
+    
+    m_aiSettingsButton = new QPushButton("⚙️ AI设置");
+    m_aiSettingsButton->setStyleSheet("QPushButton { background-color: #6c757d; color: white; font-weight: bold; padding: 10px; }");
+    connect(m_aiSettingsButton, &QPushButton::clicked, this, &MainWindow::onAISettingsClicked);
+    buttonLayout->addWidget(m_aiSettingsButton);
+    
+    adviceLayout->addLayout(buttonLayout);
+    
     m_adviceTextEdit = new QTextEdit;
-    m_adviceTextEdit->setPlainText("点击上方按钮获取基于当前游戏状态的最优决策建议。\n\n建议将包括：\n- 当前局势分析\n- 概率计算\n- 推荐行动\n- 道具使用建议");
+    m_adviceTextEdit->setPlainText("点击上方按钮获取基于当前游戏状态的AI决策建议。\n\n首次使用前请先点击\"AI设置\"配置您的AI服务。\n\nAI将分析：\n- 当前局势和概率计算\n- 博弈论最优策略\n- 道具使用建议\n- 风险评估和期望收益");
+    m_adviceTextEdit->setMaximumHeight(200);  // 限制高度以节省空间
     adviceLayout->addWidget(m_adviceTextEdit);
+    
+    mainLayout->addWidget(adviceGroup);
 }
 
 void MainWindow::onNewRound()
@@ -382,6 +432,24 @@ void MainWindow::onCalculateProbability()
 
 void MainWindow::onGetDecisionAdvice()
 {
+    qDebug() << "=== MainWindow AI Advice Request ===";
+    
+    // 检查AI设置
+    QSettings settings("BuckshotRouletteTool", "AI");
+    QString apiUrl = settings.value("api_url", "").toString();
+    QString apiKey = settings.value("api_key", "").toString();
+    
+    qDebug() << "AI Settings Check:";
+    qDebug() << "  API URL:" << apiUrl;
+    qDebug() << "  API Key Empty:" << apiKey.isEmpty();
+    
+    if (apiUrl.isEmpty() || apiKey.isEmpty()) {
+        qDebug() << "AI settings incomplete, showing warning message";
+        m_adviceTextEdit->setPlainText("⚠️ 请先点击\"AI设置\"按钮配置您的AI服务。\n\n需要设置：\n- API URL\n- API Key\n\n配置完成后即可获取AI决策建议。");
+        return;
+    }
+    
+    // 准备游戏状态
     DecisionHelper::GameState state;
     state.remainingLive = m_bulletTracker->getRemainingLive();
     state.remainingBlank = m_bulletTracker->getRemainingBlank();
@@ -389,13 +457,19 @@ void MainWindow::onGetDecisionAdvice()
     state.knownBullets = m_bulletTracker->getKnownBullets();
     state.playerItems = m_itemManager->getPlayerItems();
     state.dealerItems = m_itemManager->getDealerItems();
-    state.playerHealth = 3; // 默认值，后续可以添加UI控制
-    state.dealerHealth = 3;
+    state.playerHealth = m_playerHealthSpinBox->value();
+    state.dealerHealth = m_dealerHealthSpinBox->value();
     state.isPlayerTurn = true;
     state.handsawActive = false;
     
-    QString advice = m_decisionHelper->getAdvice(state);
-    m_adviceTextEdit->setPlainText(advice);
+    // 获取自定义提示和模型
+    QString customPrompt = settings.value("custom_prompt", "").toString();
+    QString model = settings.value("model", "gpt-3.5-turbo").toString();
+    
+    qDebug() << "Sending game state to AI...";
+    
+    // 发送AI请求
+    m_decisionHelper->getAIAdvice(state, apiUrl, apiKey, model, customPrompt);
 }
 
 void MainWindow::updateDisplay()
@@ -723,7 +797,7 @@ void MainWindow::onRandomChoice()
     QString resultText = QString("🎲 建议选择：%1\n\n当前实弹概率：%2%")
         .arg(isLive ? "🔴 实弹" : "🔵 空包弹")
         .arg(static_cast<int>(liveProbability * 100));
-    
+
     QMessageBox msgBox;
     msgBox.setWindowTitle("随机选择建议");
     msgBox.setText(resultText);
@@ -738,4 +812,43 @@ void MainWindow::onRandomChoice()
     }
     
     msgBox.exec();
+}
+
+void MainWindow::onAISettingsClicked()
+{
+    AISettings settingsDialog(this);
+    if (settingsDialog.exec() == QDialog::Accepted) {
+        // 设置已保存，显示成功消息
+        m_adviceTextEdit->setPlainText("✅ AI设置已保存！\n\n现在您可以点击\"获取AI建议\"按钮来获取基于当前游戏状态的AI决策分析。\n\nAI将运用概率论和博弈论为您提供最优策略建议。");
+    }
+}
+
+void MainWindow::onAIAdviceReceived(const QString &advice)
+{
+    qDebug() << "=== AI Advice Received ===";
+    qDebug() << "Advice Length:" << advice.length() << "chars";
+    qDebug() << "Advice Content:" << advice;
+    m_adviceTextEdit->setPlainText(advice);
+}
+
+void MainWindow::onAIRequestStarted()
+{
+    qDebug() << "=== AI Request Started ===";
+    m_getAdviceButton->setEnabled(false);
+    m_getAdviceButton->setText("🤖 AI思考中...");
+    m_adviceTextEdit->setPlainText("🤖 AI正在分析当前游戏状态...\n\n请稍等，这可能需要几秒钟时间。\n\n分析内容：\n- 概率论计算\n- 博弈论策略\n- 风险评估\n- 最优决策建议");
+}
+
+void MainWindow::onAIRequestFinished()
+{
+    qDebug() << "=== AI Request Finished ===";
+    m_getAdviceButton->setEnabled(true);
+    m_getAdviceButton->setText("🤖 获取AI建议");
+}
+
+void MainWindow::onAIError(const QString &error)
+{
+    qDebug() << "=== AI Request Error ===";
+    qDebug() << "Error Message:" << error;
+    m_adviceTextEdit->setPlainText(QString("❌ AI请求失败\n\n错误信息：%1\n\n解决建议：\n- 检查网络连接\n- 验证API设置是否正确\n- 确认API密钥有效\n- 稍后重试").arg(error));
 }

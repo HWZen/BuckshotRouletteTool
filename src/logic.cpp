@@ -317,7 +317,13 @@ QString ItemManager::getItemDescription(ItemType type)
 // DecisionHelper实现
 DecisionHelper::DecisionHelper(QObject *parent)
     : QObject(parent)
+    , m_aiClient(new AIClient(this))
 {
+    // 连接AI客户端信号
+    connect(m_aiClient, &AIClient::responseReceived, this, &DecisionHelper::onAIResponse);
+    connect(m_aiClient, &AIClient::errorOccurred, this, &DecisionHelper::onAIError);
+    connect(m_aiClient, &AIClient::requestStarted, this, &DecisionHelper::onAIRequestStarted);
+    connect(m_aiClient, &AIClient::requestFinished, this, &DecisionHelper::onAIRequestFinished);
 }
 
 QString DecisionHelper::getAdvice(const GameState &state)
@@ -548,4 +554,184 @@ QString DecisionHelper::analyzeItems(const GameState &state)
     }
     
     return itemAnalysis;
+}
+
+// AI相关方法实现
+void DecisionHelper::getAIAdvice(const GameState &state, const QString &apiUrl, const QString &apiKey, const QString &model, const QString &customPrompt)
+{
+    qDebug() << "=== DecisionHelper AI Request ===";
+    qDebug() << "Game State:";
+    qDebug() << "  Remaining Live:" << state.remainingLive;
+    qDebug() << "  Remaining Blank:" << state.remainingBlank;
+    qDebug() << "  Current Position:" << state.currentPosition;
+    qDebug() << "  Player Health:" << state.playerHealth;
+    qDebug() << "  Dealer Health:" << state.dealerHealth;
+    qDebug() << "  Is Player Turn:" << state.isPlayerTurn;
+    qDebug() << "  Handsaw Active:" << state.handsawActive;
+    qDebug() << "  Known Bullets Count:" << state.knownBullets.size();
+    qDebug() << "  Player Items Count:" << state.playerItems.size();
+    qDebug() << "  Dealer Items Count:" << state.dealerItems.size();
+    
+    // 详细打印已知子弹信息
+    for (int i = 0; i < state.knownBullets.size(); ++i) {
+        const auto &bullet = state.knownBullets[i];
+        qDebug() << QString("  Known Bullet %1: Position=%2, IsLive=%3, IsFired=%4")
+                    .arg(i).arg(bullet.position).arg(bullet.isLive).arg(bullet.isFired);
+    }
+    
+    // 详细打印道具信息
+    qDebug() << "  Player Items:";
+    for (int i = 0; i < state.playerItems.size(); ++i) {
+        const auto &item = state.playerItems[i];
+        qDebug() << QString("    Item %1: %2 (Used: %3)").arg(i).arg(item.name).arg(item.isUsed);
+    }
+    
+    qDebug() << "  Dealer Items:";
+    for (int i = 0; i < state.dealerItems.size(); ++i) {
+        const auto &item = state.dealerItems[i];
+        qDebug() << QString("    Item %1: %2 (Used: %3)").arg(i).arg(item.name).arg(item.isUsed);
+    }
+    
+    qDebug() << "API Configuration:";
+    qDebug() << "  API URL:" << apiUrl;
+    qDebug() << "  API Key Length:" << apiKey.length();
+    qDebug() << "  Model:" << (model.isEmpty() ? "gpt-3.5-turbo (default)" : model);
+    qDebug() << "  Custom Prompt Length:" << customPrompt.length();
+    
+    m_aiClient->setApiUrl(apiUrl);
+    m_aiClient->setApiKey(apiKey);
+    m_aiClient->setModel(model);  // 设置AI模型
+    
+    QString systemPrompt = buildSystemPrompt();
+    QString userPrompt = buildUserPrompt(state, customPrompt);
+    
+    qDebug() << "Prompt Lengths:";
+    qDebug() << "  System Prompt:" << systemPrompt.length() << "chars";
+    qDebug() << "  User Prompt:" << userPrompt.length() << "chars";
+    
+    m_aiClient->sendRequest(systemPrompt, userPrompt);
+}
+
+void DecisionHelper::cancelAIRequest()
+{
+    m_aiClient->cancelRequest();
+}
+
+void DecisionHelper::onAIResponse(const QString &response)
+{
+    emit aiAdviceReceived(response);
+}
+
+void DecisionHelper::onAIError(const QString &error)
+{
+    emit aiError(error);
+}
+
+void DecisionHelper::onAIRequestStarted()
+{
+    emit aiRequestStarted();
+}
+
+void DecisionHelper::onAIRequestFinished()
+{
+    emit aiRequestFinished();
+}
+
+QString DecisionHelper::buildSystemPrompt()
+{
+  return R"(你是一个专业的俄式轮盘赌博游戏Buckshot Roulette博弈分析师，精通概率论和博弈论。
+
+## 游戏规则（Buckshot Roulette）：
+1. **基本玩法**：
+   - 游戏每一大回合随机提供2~8枚子弹
+   - 弹仓中装有实弹和空包弹
+   - 玩家先手开始小回合
+   - 玩家小回合：可以选择射击对手或射击自己
+   - 射击对手：如果是实弹，对手扣血；如果是空包弹，己方小回合结束，对手回合开始
+   - 射击自己：如果是空包弹，保持回合继续；如果是实弹，自己扣血且己方小回合结束，对手回合开始
+   - 所有子弹射出或有血量归零的一方，大回合结束
+   - 血量归零的一方失败
+   - 大回合开始前，会给玩家和庄家发放不定量道具
+   - 大回合结束后不回收道具，但是最多拥有8个道具，超出部分将不会发放
+   - 在己方小回合未结束前，都可使用道具
+
+2. **道具系统**：
+   - 放大镜：查看当前子弹类型
+   - 香烟：回复1点血量
+   - 啤酒：弹出当前子弹（相当于浪费一发）
+   - 手锯：下一发子弹造成双倍伤害（如果是实弹）
+   - 手铐：对手跳过下一回合
+   - 一次性电话：随机告知一发子弹的类型
+   - 逆变器：改变当前子弹类型（实弹空包弹互相转换）
+   - 肾上腺素：偷取对手一个随机道具（肾上腺素除外）
+   - 过期药物：50%几率+2血或-1血
+
+请基于概率论和博弈论给出最优策略建议。
+
+回复请勿以任何文本格式组织（markdown、json等）
+)";
+}
+
+QString DecisionHelper::buildUserPrompt(const GameState &state, const QString &customPrompt)
+{
+    QString prompt = "## 当前游戏状态：\n\n";
+
+    // 基本信息
+    prompt += QString("**玩家回合**：是\n");
+    prompt += QString("**血量状态**：玩家 %1血，庄家 %2血\n").arg(state.playerHealth).arg(state.dealerHealth);
+    prompt += QString("**剩余子弹**：实弹 %1发，空包弹 %2发\n").arg(state.remainingLive).arg(state.remainingBlank);
+    prompt += QString("**当前位置**：第 %1 发子弹\n").arg(state.currentPosition);
+    
+    // 已知子弹信息
+    if (!state.knownBullets.isEmpty()) {
+        prompt += "\n**已知子弹信息**：\n";
+        for (const auto &bullet : state.knownBullets) {
+            if (!bullet.isFired) {
+                prompt += QString("- 第%1发: %2\n").arg(bullet.position).arg(bullet.isLive ? "实弹" : "空包弹");
+            }
+        }
+    }
+    
+    // 玩家道具
+    prompt += "\n**玩家可用道具**：\n";
+    bool hasPlayerItems = false;
+    for (const auto &item : state.playerItems) {
+        if (!item.isUsed) {
+            prompt += QString("- %1\n").arg(item.name);
+            hasPlayerItems = true;
+        }
+    }
+    if (!hasPlayerItems) {
+        prompt += "- 无\n";
+    }
+    
+    // 庄家道具
+    prompt += "\n**庄家道具**：\n";
+    bool hasDealerItems = false;
+    for (const auto &item : state.dealerItems) {
+        if (!item.isUsed) {
+            prompt += QString("- %1\n").arg(item.name);
+            hasDealerItems = true;
+        }
+    }
+    if (!hasDealerItems) {
+        prompt += "- 无\n";
+    }
+    
+    // 特殊状态
+    if (state.handsawActive) {
+        prompt += "\n**特殊状态**：手锯激活（下一发双倍伤害）\n";
+    }
+    
+    // 默认策略问题
+    prompt += "\n## 请求分析：\n\n";
+    prompt += "请基于以上信息，运用概率论和博弈论知识,给出详细的分析和明确的行动建议\n";
+    
+    // 自定义策略问题
+    if (!customPrompt.isEmpty()) {
+        prompt += "\n## 额外策略问题：\n";
+        prompt += customPrompt + "\n";
+    }
+    
+    return prompt;
 }

@@ -6,6 +6,7 @@
 #include <QHeaderView>
 #include <QTimer>
 #include <QDebug>
+#include <random>
 
 // MainWindow实现
 MainWindow::MainWindow(QWidget *parent)
@@ -15,6 +16,8 @@ MainWindow::MainWindow(QWidget *parent)
     , m_bulletTracker(nullptr)
     , m_itemManager(nullptr)
     , m_decisionHelper(nullptr)
+    , m_randomGenerator(m_randomDevice())
+    , m_distribution(0.0, 1.0)
 {
     setWindowTitle(QString("BuckshotRouletteTool %1").arg(PROJECT_VERSION));
     setMinimumSize(1000, 700);
@@ -110,6 +113,32 @@ void MainWindow::setupBulletTracker()
     m_probabilityBar->setRange(0, 100);
     m_probabilityBar->setValue(0);
     statusLayout->addWidget(m_probabilityBar, 3, 0, 1, 2);
+    
+    // 帮你选择按钮
+    m_randomChoiceButton = new QPushButton("🎲 帮你选择");
+    m_randomChoiceButton->setStyleSheet(
+        "QPushButton {"
+        "    background-color: #17A2B8;"
+        "    color: white;"
+        "    border: none;"
+        "    border-radius: 4px;"
+        "    padding: 6px;"
+        "    font-weight: bold;"
+        "}"
+        "QPushButton:hover {"
+        "    background-color: #138496;"
+        "}"
+        "QPushButton:pressed {"
+        "    background-color: #117A8B;"
+        "}"
+        "QPushButton:disabled {"
+        "    background-color: #6C757D;"
+        "    color: #DEE2E6;"
+        "}"
+    );
+    m_randomChoiceButton->setToolTip("根据当前实弹概率随机选择子弹类型");
+    connect(m_randomChoiceButton, &QPushButton::clicked, this, &MainWindow::onRandomChoice);
+    statusLayout->addWidget(m_randomChoiceButton, 4, 0, 1, 2);
     
     topLayout->addWidget(statusGroup);
     
@@ -528,6 +557,7 @@ void MainWindow::updateDisplay()
     // 启用/禁用按钮
     bool hasRound = (m_bulletTracker->getRemainingLive() + m_bulletTracker->getRemainingBlank()) > 0;
     m_getAdviceButton->setEnabled(hasRound);
+    m_randomChoiceButton->setEnabled(hasRound);
     
     // 更新道具列表
     updateItemLists();
@@ -669,4 +699,43 @@ void MainWindow::updateItemLists()
         m_dealerItemsList->addItem(listItem);
         m_dealerItemsList->setItemWidget(listItem, itemWidget);
     }
+}
+
+void MainWindow::onRandomChoice()
+{
+    // 检查是否有剩余子弹
+    int totalRemaining = m_bulletTracker->getRemainingLive() + m_bulletTracker->getRemainingBlank();
+    if (totalRemaining <= 0) {
+        QMessageBox::information(this, "无法选择", "当前没有剩余子弹！");
+        return;
+    }
+    
+    // 获取当前实弹概率
+    double liveProbability = m_bulletTracker->getLiveProbability();
+    
+    // 生成随机数 (0.0 到 1.0)
+    double randomValue = m_distribution(m_randomGenerator);
+    
+    // 根据概率决定子弹类型
+    bool isLive = randomValue < liveProbability;
+    
+    // 显示选择结果
+    QString resultText = QString("🎲 建议选择：%1\n\n当前实弹概率：%2%")
+        .arg(isLive ? "🔴 实弹" : "🔵 空包弹")
+        .arg(static_cast<int>(liveProbability * 100));
+    
+    QMessageBox msgBox;
+    msgBox.setWindowTitle("随机选择建议");
+    msgBox.setText(resultText);
+    msgBox.setStandardButtons(QMessageBox::Ok);
+    msgBox.button(QMessageBox::Ok)->setText("知道了");
+    
+    // 设置图标和样式
+    if (isLive) {
+        msgBox.setIcon(QMessageBox::Warning);
+    } else {
+        msgBox.setIcon(QMessageBox::Information);
+    }
+    
+    msgBox.exec();
 }

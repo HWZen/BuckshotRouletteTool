@@ -17,6 +17,7 @@
 #include <QTabWidget>
 #include <QTableWidget>
 #include <QSplitter>
+#include <random>
 
 #include "bullettracker.h"
 #include "itemmanager.h"
@@ -37,6 +38,7 @@ private slots:
     void onResetGame();
     void onCalculateProbability();
     void onGetDecisionAdvice();
+    void onRandomChoice();
 
 private:
     void setupUI();
@@ -61,6 +63,7 @@ private:
     QLabel *m_remainingBlankLabel;
     QLabel *m_probabilityLabel;
     QProgressBar *m_probabilityBar;
+    QPushButton *m_randomChoiceButton;
     
     // 已知信息标签页
     QWidget *m_knownTab;
@@ -83,4 +86,9 @@ private:
     BulletTracker *m_bulletTracker;
     ItemManager *m_itemManager;
     DecisionHelper *m_decisionHelper;
+    
+    // 随机数生成器
+    std::random_device m_randomDevice;
+    std::mt19937 m_randomGenerator;
+    std::uniform_real_distribution<double> m_distribution;
 };

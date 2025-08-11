@@ -150,31 +150,70 @@ void MainWindow::setupItemManager()
     
     QHBoxLayout *itemLayout = new QHBoxLayout(m_itemTab);
     
+    // 道具按钮数据结构
+    struct ItemButtonInfo {
+        QString name;
+        ItemManager::ItemType type;
+        QString color;
+    };
+    
     // 玩家道具
     m_playerItemsGroup = new QGroupBox("玩家道具");
     QVBoxLayout *playerLayout = new QVBoxLayout(m_playerItemsGroup);
     
-    // 添加道具按钮
-    QComboBox *playerItemCombo = new QComboBox;
-    playerItemCombo->addItem("放大镜 - 查看当前子弹", static_cast<int>(ItemManager::ItemType::MagnifyingGlass));
-    playerItemCombo->addItem("香烟 - 恢复1生命", static_cast<int>(ItemManager::ItemType::Cigarettes));
-    playerItemCombo->addItem("啤酒 - 弹出当前子弹", static_cast<int>(ItemManager::ItemType::Beer));
-    playerItemCombo->addItem("手锯 - 双倍伤害", static_cast<int>(ItemManager::ItemType::Handsaw));
-    playerItemCombo->addItem("手铐 - 跳过对手回合", static_cast<int>(ItemManager::ItemType::Handcuffs));
-    playerItemCombo->addItem("一次性电话 - 查看随机子弹", static_cast<int>(ItemManager::ItemType::BurnerPhone));
-    playerItemCombo->addItem("逆变器 - 改变当前子弹类型", static_cast<int>(ItemManager::ItemType::Inverter));
-    playerItemCombo->addItem("肾上腺素 - 偷取道具", static_cast<int>(ItemManager::ItemType::Adrenaline));
-    playerItemCombo->addItem("过期药物 - 50%概率效果", static_cast<int>(ItemManager::ItemType::ExpiredMedicine));
+    // 玩家道具按钮区域
+    QLabel *playerAddLabel = new QLabel("添加道具:");
+    playerLayout->addWidget(playerAddLabel);
     
-    QPushButton *addPlayerItemBtn = new QPushButton("添加玩家道具");
-    connect(addPlayerItemBtn, &QPushButton::clicked, [this, playerItemCombo]() {
-        auto itemType = static_cast<ItemManager::ItemType>(playerItemCombo->currentData().toInt());
-        m_itemManager->addPlayerItem(itemType);
-        updateDisplay();
-    });
+    // 创建网格布局来排列道具按钮
+    QGridLayout *playerButtonsLayout = new QGridLayout;
     
-    playerLayout->addWidget(playerItemCombo);
-    playerLayout->addWidget(addPlayerItemBtn);
+    QList<ItemButtonInfo> items = {
+        {"🔍 放大镜", ItemManager::ItemType::MagnifyingGlass, "#6C757D"},
+        {"🚬 香烟", ItemManager::ItemType::Cigarettes, "#6C757D"},
+        {"🍺 啤酒", ItemManager::ItemType::Beer, "#6C757D"},
+        {"🪚 手锯", ItemManager::ItemType::Handsaw, "#6C757D"},
+        {"⛓️ 手铐", ItemManager::ItemType::Handcuffs, "#6C757D"},
+        {"📞 一次性电话", ItemManager::ItemType::BurnerPhone, "#6C757D"},
+        {"🔄 逆变器", ItemManager::ItemType::Inverter, "#6C757D"},
+        {"💉 肾上腺素", ItemManager::ItemType::Adrenaline, "#6C757D"},
+        {"💊 过期药物", ItemManager::ItemType::ExpiredMedicine, "#6C757D"}
+    };
+    
+    // 创建玩家道具按钮（3列布局）
+    for (int i = 0; i < items.size(); ++i) {
+        QPushButton *button = new QPushButton(items[i].name);
+        button->setStyleSheet(QString(
+            "QPushButton {"
+            "    background-color: %1;"
+            "    color: white;"
+            "    border: none;"
+            "    border-radius: 4px;"
+            "    padding: 8px;"
+            "    font-weight: bold;"
+            "}"
+            "QPushButton:hover {"
+            "    background-color: %2;"
+            "}"
+            "QPushButton:pressed {"
+            "    background-color: %3;"
+            "}"
+        ).arg(items[i].color)
+         .arg(items[i].color + "CC")  // 悬停时稍微透明
+         .arg(items[i].color + "AA")); // 按下时更透明
+        
+        // 连接信号
+        connect(button, &QPushButton::clicked, [this, itemType = items[i].type]() {
+            m_itemManager->addPlayerItem(itemType);
+            updateDisplay();
+        });
+        
+        int row = i / 3;
+        int col = i % 3;
+        playerButtonsLayout->addWidget(button, row, col);
+    }
+    
+    playerLayout->addLayout(playerButtonsLayout);
     
     // 玩家道具列表
     QLabel *playerItemsLabel = new QLabel("已拥有道具:");
@@ -191,26 +230,59 @@ void MainWindow::setupItemManager()
     m_dealerItemsGroup = new QGroupBox("庄家道具");
     QVBoxLayout *dealerLayout = new QVBoxLayout(m_dealerItemsGroup);
     
-    QComboBox *dealerItemCombo = new QComboBox;
-    dealerItemCombo->addItem("放大镜 - 查看当前子弹", static_cast<int>(ItemManager::ItemType::MagnifyingGlass));
-    dealerItemCombo->addItem("香烟 - 恢复1生命", static_cast<int>(ItemManager::ItemType::Cigarettes));
-    dealerItemCombo->addItem("啤酒 - 弹出当前子弹", static_cast<int>(ItemManager::ItemType::Beer));
-    dealerItemCombo->addItem("手锯 - 双倍伤害", static_cast<int>(ItemManager::ItemType::Handsaw));
-    dealerItemCombo->addItem("手铐 - 跳过对手回合", static_cast<int>(ItemManager::ItemType::Handcuffs));
-    dealerItemCombo->addItem("一次性电话 - 查看随机子弹", static_cast<int>(ItemManager::ItemType::BurnerPhone));
-    dealerItemCombo->addItem("逆变器 - 改变当前子弹类型", static_cast<int>(ItemManager::ItemType::Inverter));
-    dealerItemCombo->addItem("肾上腺素 - 偷取道具", static_cast<int>(ItemManager::ItemType::Adrenaline));
-    dealerItemCombo->addItem("过期药物 - 50%概率效果", static_cast<int>(ItemManager::ItemType::ExpiredMedicine));
+    // 庄家道具按钮区域
+    QLabel *dealerAddLabel = new QLabel("添加道具:");
+    dealerLayout->addWidget(dealerAddLabel);
     
-    QPushButton *addDealerItemBtn = new QPushButton("添加庄家道具");
-    connect(addDealerItemBtn, &QPushButton::clicked, [this, dealerItemCombo]() {
-        auto itemType = static_cast<ItemManager::ItemType>(dealerItemCombo->currentData().toInt());
-        m_itemManager->addDealerItem(itemType);
-        updateDisplay();
-    });
+    // 创建网格布局来排列庄家道具按钮
+    QGridLayout *dealerButtonsLayout = new QGridLayout;
     
-    dealerLayout->addWidget(dealerItemCombo);
-    dealerLayout->addWidget(addDealerItemBtn);
+    // 创建庄家道具按钮（3列布局，使用统一颜色）
+    QList<ItemButtonInfo> dealerItems = {
+        {"🔍 放大镜", ItemManager::ItemType::MagnifyingGlass, "#6C757D"},
+        {"🚬 香烟", ItemManager::ItemType::Cigarettes, "#6C757D"},
+        {"🍺 啤酒", ItemManager::ItemType::Beer, "#6C757D"},
+        {"🪚 手锯", ItemManager::ItemType::Handsaw, "#6C757D"},
+        {"⛓️ 手铐", ItemManager::ItemType::Handcuffs, "#6C757D"},
+        {"📞 一次性电话", ItemManager::ItemType::BurnerPhone, "#6C757D"},
+        {"🔄 逆变器", ItemManager::ItemType::Inverter, "#6C757D"},
+        {"💉 肾上腺素", ItemManager::ItemType::Adrenaline, "#6C757D"},
+        {"💊 过期药物", ItemManager::ItemType::ExpiredMedicine, "#6C757D"}
+    };
+    
+    for (int i = 0; i < dealerItems.size(); ++i) {
+        QPushButton *button = new QPushButton(dealerItems[i].name);
+        button->setStyleSheet(QString(
+            "QPushButton {"
+            "    background-color: %1;"
+            "    color: white;"
+            "    border: none;"
+            "    border-radius: 4px;"
+            "    padding: 8px;"
+            "    font-weight: bold;"
+            "}"
+            "QPushButton:hover {"
+            "    background-color: %2;"
+            "}"
+            "QPushButton:pressed {"
+            "    background-color: %3;"
+            "}"
+        ).arg(dealerItems[i].color)
+         .arg(dealerItems[i].color + "CC")
+         .arg(dealerItems[i].color + "AA"));
+        
+        // 连接信号
+        connect(button, &QPushButton::clicked, [this, itemType = dealerItems[i].type]() {
+            m_itemManager->addDealerItem(itemType);
+            updateDisplay();
+        });
+        
+        int row = i / 3;
+        int col = i % 3;
+        dealerButtonsLayout->addWidget(button, row, col);
+    }
+    
+    dealerLayout->addLayout(dealerButtonsLayout);
     
     // 庄家道具列表
     QLabel *dealerItemsLabel = new QLabel("庄家道具:");
@@ -487,54 +559,114 @@ void MainWindow::updateItemLists()
     // 更新玩家道具列表
     m_playerItemsList->clear();
     const auto& playerItems = m_itemManager->getPlayerItems();
-    for (const auto& item : playerItems) {
+    for (int i = 0; i < playerItems.size(); ++i) {
+        const auto& item = playerItems[i];
+        
+        // 创建自定义widget包含道具名称和删除按钮
+        QWidget* itemWidget = new QWidget;
+        QHBoxLayout* itemLayout = new QHBoxLayout(itemWidget);
+        itemLayout->setContentsMargins(5, 2, 5, 2);
+        
+        // 道具名称标签
+        QLabel* nameLabel = new QLabel;
         QString itemText = item.name;
         if (item.isUsed) {
             itemText += " (已使用)";
-        }
-        
-        QListWidgetItem* listItem = new QListWidgetItem(itemText);
-        if (item.isUsed) {
-            listItem->setForeground(QColor(Qt::gray));
-            QFont font = listItem->font();
-            font.setStrikeOut(true);
-            listItem->setFont(font);
+            nameLabel->setStyleSheet("color: gray; text-decoration: line-through;");
         } else {
-            listItem->setForeground(QColor(Qt::darkGreen));
-            QFont font = listItem->font();
-            font.setBold(true);
-            listItem->setFont(font);
+            nameLabel->setStyleSheet("color: darkgreen; font-weight: bold;");
         }
+        nameLabel->setText(itemText);
+        nameLabel->setToolTip(item.description);
         
-        // 设置工具提示显示道具描述
-        listItem->setToolTip(item.description);
+        // 删除按钮
+        QPushButton* deleteBtn = new QPushButton("❌");
+        deleteBtn->setMaximumSize(25, 25);
+        deleteBtn->setStyleSheet(
+            "QPushButton {"
+            // "    background-color: #DC3545;"
+            "    color: white;"
+            "    border: none;"
+            "    border-radius: 3px;"
+            "    font-size: 12px;"
+            "}"
+            "QPushButton:hover {"
+            // "    background-color: #C82333;"
+            "}"
+        );
+        deleteBtn->setToolTip("删除此道具");
+        
+        // 连接删除信号
+        connect(deleteBtn, &QPushButton::clicked, [this, i]() {
+            m_itemManager->removePlayerItem(i);
+            updateDisplay();
+        });
+        
+        itemLayout->addWidget(nameLabel);
+        itemLayout->addStretch();
+        itemLayout->addWidget(deleteBtn);
+        
+        // 添加到列表
+        QListWidgetItem* listItem = new QListWidgetItem;
+        listItem->setSizeHint(itemWidget->sizeHint());
         m_playerItemsList->addItem(listItem);
+        m_playerItemsList->setItemWidget(listItem, itemWidget);
     }
     
     // 更新庄家道具列表
     m_dealerItemsList->clear();
     const auto& dealerItems = m_itemManager->getDealerItems();
-    for (const auto& item : dealerItems) {
+    for (int i = 0; i < dealerItems.size(); ++i) {
+        const auto& item = dealerItems[i];
+        
+        // 创建自定义widget包含道具名称和删除按钮
+        QWidget* itemWidget = new QWidget;
+        QHBoxLayout* itemLayout = new QHBoxLayout(itemWidget);
+        itemLayout->setContentsMargins(5, 2, 5, 2);
+        
+        // 道具名称标签
+        QLabel* nameLabel = new QLabel;
         QString itemText = item.name;
         if (item.isUsed) {
             itemText += " (已使用)";
-        }
-        
-        QListWidgetItem* listItem = new QListWidgetItem(itemText);
-        if (item.isUsed) {
-            listItem->setForeground(QColor(Qt::gray));
-            QFont font = listItem->font();
-            font.setStrikeOut(true);
-            listItem->setFont(font);
+            nameLabel->setStyleSheet("color: gray; text-decoration: line-through;");
         } else {
-            listItem->setForeground(QColor(Qt::darkRed));
-            QFont font = listItem->font();
-            font.setBold(true);
-            listItem->setFont(font);
+            nameLabel->setStyleSheet("color: darkred; font-weight: bold;");
         }
+        nameLabel->setText(itemText);
+        nameLabel->setToolTip(item.description);
         
-        // 设置工具提示显示道具描述
-        listItem->setToolTip(item.description);
+        // 删除按钮
+        QPushButton* deleteBtn = new QPushButton("❌");
+        deleteBtn->setMaximumSize(25, 25);
+        deleteBtn->setStyleSheet(
+            "QPushButton {"
+            // "    background-color: #DC3545;"
+            "    color: white;"
+            "    border: none;"
+            "    border-radius: 3px;"
+            "    font-size: 12px;"
+            "}"
+            "QPushButton:hover {"
+            // "    background-color: #C82333;"
+            "}"
+        );
+        deleteBtn->setToolTip("删除此道具");
+        
+        // 连接删除信号
+        connect(deleteBtn, &QPushButton::clicked, [this, i]() {
+            m_itemManager->removeDealerItem(i);
+            updateDisplay();
+        });
+        
+        itemLayout->addWidget(nameLabel);
+        itemLayout->addStretch();
+        itemLayout->addWidget(deleteBtn);
+        
+        // 添加到列表
+        QListWidgetItem* listItem = new QListWidgetItem;
+        listItem->setSizeHint(itemWidget->sizeHint());
         m_dealerItemsList->addItem(listItem);
+        m_dealerItemsList->setItemWidget(listItem, itemWidget);
     }
 }

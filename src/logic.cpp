@@ -254,6 +254,20 @@ void ItemManager::clearAllItems()
     m_dealerItems.clear();
 }
 
+void ItemManager::removePlayerItem(int index)
+{
+    if (index >= 0 && index < m_playerItems.size()) {
+        m_playerItems.removeAt(index);
+    }
+}
+
+void ItemManager::removeDealerItem(int index)
+{
+    if (index >= 0 && index < m_dealerItems.size()) {
+        m_dealerItems.removeAt(index);
+    }
+}
+
 const QList<ItemManager::ItemInfo>& ItemManager::getPlayerItems() const
 {
     return m_playerItems;

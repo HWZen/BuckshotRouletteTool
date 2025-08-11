@@ -35,6 +35,8 @@ public:
     void addDealerItem(ItemType type);
     void usePlayerItem(ItemType type);
     void useDealerItem(ItemType type);
+    void removePlayerItem(int index);
+    void removeDealerItem(int index);
     void clearAllItems();
     
     const QList<ItemInfo>& getPlayerItems() const;

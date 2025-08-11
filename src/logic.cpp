@@ -71,6 +71,7 @@ void BulletTracker::addKnownBullet(int position, bool isLive)
     for (auto &known : m_knownBullets) {
         if (known.position == position) {
             known.isLive = isLive;
+            calculateProbability(); // 修复：重复修改时也要重新计算概率
             return;
         }
     }
@@ -373,8 +374,8 @@ QString DecisionHelper::analyzeCurrentSituation(const GameState &state)
         analysis += QString("当前子弹：%1（已知）\n")
             .arg(currentIsLive ? "实弹" : "空包弹");
     } else {
-        analysis += QString("当前子弹概率：%.1f%% 实弹，%.1f%% 空包弹\n")
-            .arg(liveProbability * 100).arg((1.0 - liveProbability) * 100);
+        analysis += QString("当前子弹概率：%1% 实弹，%2% 空包弹\n")
+            .arg(liveProbability * 100, 0, 'f', 1).arg((1.0 - liveProbability) * 100, 0, 'f', 1);
     }
     
     analysis += QString("生命值：玩家 %1，庄家 %2\n")
@@ -433,8 +434,8 @@ QString DecisionHelper::recommendAction(const GameState &state)
             recommendation += "推荐：射击自己（低实弹概率，有机会连续行动）\n";
         } else {
             recommendation += "中等概率，建议根据当前局势和道具情况决定：\n";
-            recommendation += QString("- 射击庄家期望值：%.2f\n").arg(shootDealerEV);
-            recommendation += QString("- 射击自己期望值：%.2f\n").arg(shootSelfEV);
+            recommendation += QString("- 射击庄家期望值：%1\n").arg(shootDealerEV);
+            recommendation += QString("- 射击自己期望值：%1\n").arg(shootSelfEV);
             
             if (shootDealerEV > shootSelfEV) {
                 recommendation += "轻微推荐：射击庄家\n";

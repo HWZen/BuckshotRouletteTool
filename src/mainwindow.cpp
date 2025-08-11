@@ -1,5 +1,6 @@
 #include "main.h"
 #include "version.h"
+#include "bullettypewidget.h"
 #include <QApplication>
 #include <QMessageBox>
 #include <QHeaderView>
@@ -131,7 +132,6 @@ void MainWindow::setupBulletTracker()
         "    background-color: white;"
         "}"
         "QTableWidget::item {"
-        "    padding: 8px;"
         "    border-bottom: 1px solid #e0e0e0;"
         "}"
         "QTableWidget::item:selected {"
@@ -175,6 +175,16 @@ void MainWindow::setupItemManager()
     
     playerLayout->addWidget(playerItemCombo);
     playerLayout->addWidget(addPlayerItemBtn);
+    
+    // 玩家道具列表
+    QLabel *playerItemsLabel = new QLabel("已拥有道具:");
+    playerLayout->addWidget(playerItemsLabel);
+    
+    m_playerItemsList = new QListWidget;
+    m_playerItemsList->setMaximumHeight(150);
+    m_playerItemsList->setAlternatingRowColors(true);
+    playerLayout->addWidget(m_playerItemsList);
+    
     playerLayout->addStretch();
     
     // 庄家道具
@@ -201,6 +211,16 @@ void MainWindow::setupItemManager()
     
     dealerLayout->addWidget(dealerItemCombo);
     dealerLayout->addWidget(addDealerItemBtn);
+    
+    // 庄家道具列表
+    QLabel *dealerItemsLabel = new QLabel("庄家道具:");
+    dealerLayout->addWidget(dealerItemsLabel);
+    
+    m_dealerItemsList = new QListWidget;
+    m_dealerItemsList->setMaximumHeight(150);
+    m_dealerItemsList->setAlternatingRowColors(true);
+    dealerLayout->addWidget(m_dealerItemsList);
+    
     dealerLayout->addStretch();
     
     itemLayout->addWidget(m_playerItemsGroup);
@@ -211,54 +231,14 @@ void MainWindow::setupDecisionHelper()
 {
     m_adviceTab = new QWidget;
     m_tabWidget->addTab(m_adviceTab, "决策建议");
-    
     QVBoxLayout *adviceLayout = new QVBoxLayout(m_adviceTab);
-    
     m_getAdviceButton = new QPushButton("获取AI建议");
     m_getAdviceButton->setStyleSheet("QPushButton { background-color: #51cf66; color: white; font-weight: bold; padding: 10px; }");
     connect(m_getAdviceButton, &QPushButton::clicked, this, &MainWindow::onGetDecisionAdvice);
     adviceLayout->addWidget(m_getAdviceButton);
-    
     m_adviceTextEdit = new QTextEdit;
     m_adviceTextEdit->setPlainText("点击上方按钮获取基于当前游戏状态的最优决策建议。\n\n建议将包括：\n- 当前局势分析\n- 概率计算\n- 推荐行动\n- 道具使用建议");
     adviceLayout->addWidget(m_adviceTextEdit);
-    
-    // 添加已知信息设置
-    m_knownTab = new QWidget;
-    m_tabWidget->addTab(m_knownTab, "已知信息");
-    
-    QVBoxLayout *knownLayout = new QVBoxLayout(m_knownTab);
-    
-    // 已知子弹表格
-    m_knownBulletsTable = new QTableWidget(0, 3);
-    m_knownBulletsTable->setHorizontalHeaderLabels({"位置", "类型", "操作"});
-    m_knownBulletsTable->horizontalHeader()->setStretchLastSection(true);
-    knownLayout->addWidget(m_knownBulletsTable);
-    
-    // 添加已知信息按钮
-    QHBoxLayout *knownButtonLayout = new QHBoxLayout;
-    QSpinBox *positionSpinBox = new QSpinBox;
-    positionSpinBox->setRange(1, 8);
-    QComboBox *typeCombo = new QComboBox;
-    typeCombo->addItem("实弹", true);
-    typeCombo->addItem("空包弹", false);
-    
-    m_addKnownButton = new QPushButton("添加已知信息");
-    connect(m_addKnownButton, &QPushButton::clicked, [this, positionSpinBox, typeCombo]() {
-        int position = positionSpinBox->value();
-        bool isLive = typeCombo->currentData().toBool();
-        m_bulletTracker->addKnownBullet(position, isLive);
-        updateDisplay();
-    });
-    
-    knownButtonLayout->addWidget(new QLabel("位置:"));
-    knownButtonLayout->addWidget(positionSpinBox);
-    knownButtonLayout->addWidget(new QLabel("类型:"));
-    knownButtonLayout->addWidget(typeCombo);
-    knownButtonLayout->addWidget(m_addKnownButton);
-    knownButtonLayout->addStretch();
-    
-    knownLayout->addLayout(knownButtonLayout);
 }
 
 void MainWindow::onNewRound()
@@ -375,55 +355,13 @@ void MainWindow::updateDisplay()
                 m_bulletTable->setItem(i, 1, typeItem);
             } else if (position == currentPos) {
                 // 当前位置可以设置类型
-                QComboBox* typeCombo = new QComboBox;
-                typeCombo->addItem("未知", -1);
-                typeCombo->addItem("实弹", 1);
-                typeCombo->addItem("空包弹", 0);
-                typeCombo->setCurrentIndex(0); // 默认选择"未知"
-                
-                // 设置QComboBox的样式和尺寸
-                // typeCombo->setMinimumHeight(30);
-                // typeCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-                // typeCombo->setStyleSheet(
-                //     "QComboBox {"
-                //     "    padding: 5px;"
-                //     "    border: 1px solid #cccccc;"
-                //     "    border-radius: 3px;"
-                //     "    background-color: white;"
-                //     "    min-height: 20px;"
-                //     "}"
-                //     "QComboBox::drop-down {"
-                //     "    subcontrol-origin: padding;"
-                //     "    subcontrol-position: top right;"
-                //     "    width: 20px;"
-                //     "    border-left: 1px solid #cccccc;"
-                //     "}"
-                //     "QComboBox::down-arrow {"
-                //     "    image: none;"
-                //     "    border: 2px solid #666666;"
-                //     "    width: 6px;"
-                //     "    height: 6px;"
-                //     "    border-top-color: transparent;"
-                //     "    border-left-color: transparent;"
-                //     "    border-right-color: #666666;"
-                //     "    border-bottom-color: #666666;"
-                //     "}"
-                // );
+                BulletTypeWidget* typeWidget = new BulletTypeWidget;
                 
                 // 连接信号，当选择改变时记录开火
-                connect(typeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), 
-                        [this, position, typeCombo](int index) {
-                    if (index > 0) { // 选择了实弹或空包弹
-                        QVariant data = typeCombo->currentData();
-                        if (!data.isValid()) {
-                            return; // 安全检查：如果数据无效，直接返回
-                        }
-                        
-                        bool isLive = data.toBool();
-                        
-                        // 断开信号连接，防止重复触发
-                        typeCombo->blockSignals(true);
-                        
+                connect(typeWidget, &BulletTypeWidget::typeChanged, 
+                        [this, position](int newType) {
+                    if (newType >= 0) { // 选择了实弹或空包弹
+                        bool isLive = (newType == 1);
                         m_bulletTracker->fireBullet(isLive);
                         
                         // 使用QTimer::singleShot延迟更新，避免在信号处理中直接更新
@@ -431,7 +369,7 @@ void MainWindow::updateDisplay()
                     }
                 });
                 
-                m_bulletTable->setCellWidget(i, 1, typeCombo);
+                m_bulletTable->setCellWidget(i, 1, typeWidget);
             } else {
                 // 其他位置显示为未知
                 QTableWidgetItem* typeItem = new QTableWidgetItem("未知");
@@ -460,61 +398,21 @@ void MainWindow::updateDisplay()
                 m_bulletTable->setItem(i, 2, knownItem);
             } else {
                 // 未发射的可以设置道具已知信息
-                QComboBox* knownCombo = new QComboBox;
-                knownCombo->addItem("未知", -1);
-                knownCombo->addItem("实弹", 1);
-                knownCombo->addItem("空包弹", 0);
-                
-                // 设置QComboBox的样式和尺寸
-                // knownCombo->setMinimumHeight(30);
-                // knownCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-                // knownCombo->setStyleSheet(
-                //     "QComboBox {"
-                //     "    padding: 5px;"
-                //     "    border: 1px solid #cccccc;"
-                //     "    border-radius: 3px;"
-                //     "    background-color: white;"
-                //     "    min-height: 20px;"
-                //     "}"
-                //     "QComboBox::drop-down {"
-                //     "    subcontrol-origin: padding;"
-                //     "    subcontrol-position: top right;"
-                //     "    width: 20px;"
-                //     "    border-left: 1px solid #cccccc;"
-                //     "}"
-                //     "QComboBox::down-arrow {"
-                //     "    image: none;"
-                //     "    border: 2px solid #666666;"
-                //     "    width: 6px;"
-                //     "    height: 6px;"
-                //     "    border-top-color: transparent;"
-                //     "    border-left-color: transparent;"
-                //     "    border-right-color: #666666;"
-                //     "    border-bottom-color: #666666;"
-                //     "}"
-                // );
+                BulletTypeWidget* knownWidget = new BulletTypeWidget;
                 
                 if (isKnown) {
-                    knownCombo->setCurrentIndex(knownType ? 1 : 2);
+                    knownWidget->setCurrentType(knownType ? 1 : 0);
                 } else {
-                    knownCombo->setCurrentIndex(0);
+                    knownWidget->setCurrentType(-1);
                 }
                 
                 // 连接信号，当选择改变时更新已知信息
-                connect(knownCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), 
-                        [this, position, knownCombo](int index) {
-                    // 断开信号连接，防止重复触发
-                    knownCombo->blockSignals(true);
-                    
-                    if (index == 0) { // 选择未知，移除已知信息
+                connect(knownWidget, &BulletTypeWidget::typeChanged, 
+                        [this, position](int newType) {
+                    if (newType == -1) { // 选择未知，移除已知信息
                         m_bulletTracker->removeKnownBullet(position);
                     } else { // 选择实弹或空包弹
-                        QVariant data = knownCombo->currentData();
-                        if (!data.isValid()) {
-                            return; // 安全检查：如果数据无效，直接返回
-                        }
-                        
-                        bool isLive = data.toBool();
+                        bool isLive = (newType == 1);
                         m_bulletTracker->addKnownBullet(position, isLive);
                     }
                     
@@ -522,7 +420,7 @@ void MainWindow::updateDisplay()
                     QTimer::singleShot(0, this, &MainWindow::updateDisplay);
                 });
                 
-                m_bulletTable->setCellWidget(i, 2, knownCombo);
+                m_bulletTable->setCellWidget(i, 2, knownWidget);
             }
             
             // 状态列
@@ -555,24 +453,12 @@ void MainWindow::updateDisplay()
         m_bulletTable->setRowCount(0);
     }
     
-    // 更新已知信息表格
-    m_knownBulletsTable->setRowCount(0);
-    const auto& known = m_bulletTracker->getKnownBullets();
-    for (const auto& bullet : known) {
-        if (!bullet.isFired) {
-            int row = m_knownBulletsTable->rowCount();
-            m_knownBulletsTable->insertRow(row);
-            m_knownBulletsTable->setItem(row, 0, new QTableWidgetItem(QString::number(bullet.position)));
-            m_knownBulletsTable->setItem(row, 1, new QTableWidgetItem(bullet.isLive ? "实弹" : "空包弹"));
-            QPushButton* removeBtn = new QPushButton("删除");
-            m_knownBulletsTable->setCellWidget(row, 2, removeBtn);
-        }
-    }
-    
     // 启用/禁用按钮
     bool hasRound = (m_bulletTracker->getRemainingLive() + m_bulletTracker->getRemainingBlank()) > 0;
-    m_addKnownButton->setEnabled(hasRound);
     m_getAdviceButton->setEnabled(hasRound);
+    
+    // 更新道具列表
+    updateItemLists();
 }
 
 void MainWindow::updateProbability()
@@ -594,4 +480,61 @@ void MainWindow::updateProbability()
     }
     
     m_probabilityBar->setStyleSheet(QString("QProgressBar::chunk { background-color: %1; }").arg(color));
+}
+
+void MainWindow::updateItemLists()
+{
+    // 更新玩家道具列表
+    m_playerItemsList->clear();
+    const auto& playerItems = m_itemManager->getPlayerItems();
+    for (const auto& item : playerItems) {
+        QString itemText = item.name;
+        if (item.isUsed) {
+            itemText += " (已使用)";
+        }
+        
+        QListWidgetItem* listItem = new QListWidgetItem(itemText);
+        if (item.isUsed) {
+            listItem->setForeground(QColor(Qt::gray));
+            QFont font = listItem->font();
+            font.setStrikeOut(true);
+            listItem->setFont(font);
+        } else {
+            listItem->setForeground(QColor(Qt::darkGreen));
+            QFont font = listItem->font();
+            font.setBold(true);
+            listItem->setFont(font);
+        }
+        
+        // 设置工具提示显示道具描述
+        listItem->setToolTip(item.description);
+        m_playerItemsList->addItem(listItem);
+    }
+    
+    // 更新庄家道具列表
+    m_dealerItemsList->clear();
+    const auto& dealerItems = m_itemManager->getDealerItems();
+    for (const auto& item : dealerItems) {
+        QString itemText = item.name;
+        if (item.isUsed) {
+            itemText += " (已使用)";
+        }
+        
+        QListWidgetItem* listItem = new QListWidgetItem(itemText);
+        if (item.isUsed) {
+            listItem->setForeground(QColor(Qt::gray));
+            QFont font = listItem->font();
+            font.setStrikeOut(true);
+            listItem->setFont(font);
+        } else {
+            listItem->setForeground(QColor(Qt::darkRed));
+            QFont font = listItem->font();
+            font.setBold(true);
+            listItem->setFont(font);
+        }
+        
+        // 设置工具提示显示道具描述
+        listItem->setToolTip(item.description);
+        m_dealerItemsList->addItem(listItem);
+    }
 }

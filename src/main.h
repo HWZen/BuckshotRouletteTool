@@ -21,6 +21,7 @@
 #include "bullettracker.h"
 #include "itemmanager.h"
 #include "decisionhelper.h"
+#include "bullettypewidget.h"
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -44,6 +45,7 @@ private:
     void setupDecisionHelper();
     void updateDisplay();
     void updateProbability();
+    void updateItemLists();
 
     // UI组件
     QWidget *m_centralWidget;
@@ -69,6 +71,8 @@ private:
     QWidget *m_itemTab;
     QGroupBox *m_playerItemsGroup;
     QGroupBox *m_dealerItemsGroup;
+    QListWidget *m_playerItemsList;
+    QListWidget *m_dealerItemsList;
     
     // 决策建议标签页
     QWidget *m_adviceTab;

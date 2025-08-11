@@ -15,6 +15,7 @@ target("BuckshotRouletteTool")
     add_files("src/bullettracker.h")
     add_files("src/itemmanager.h") 
     add_files("src/decisionhelper.h")
+    add_files("src/bullettypewidget.h")
     add_files("src/main.h")
     add_headerfiles("src/*.h")
     

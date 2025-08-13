@@ -398,8 +398,9 @@ QString DecisionHelper::analyzeCurrentSituation(const GameState &state)
             .arg(liveProbability * 100, 0, 'f', 1).arg((1.0 - liveProbability) * 100, 0, 'f', 1);
     }
     
-    analysis += QString("生命值：玩家 %1，庄家 %2\n")
-        .arg(state.playerHealth).arg(state.dealerHealth);
+    analysis += QString("生命值：玩家 %1/%2，庄家 %3/%4\n")
+        .arg(state.playerHealth).arg(state.playerMaxHealth)
+        .arg(state.dealerHealth).arg(state.dealerMaxHealth);
     
     if (state.handsawActive) {
         analysis += "手锯激活：下一发实弹造成双倍伤害\n";
@@ -641,21 +642,21 @@ QString DecisionHelper::buildSystemPrompt()
 {
   return R"(你是一个专业的俄式轮盘赌博游戏Buckshot Roulette博弈分析师，精通概率论和博弈论。
 
-## 游戏规则（Buckshot Roulette）：
-1. **基本玩法**：
-   - 游戏每一大回合随机提供2~8枚子弹
-   - 弹仓中装有实弹和空包弹
-   - 玩家先手开始小回合
-   - 玩家小回合：可以选择射击对手或射击自己
-   - 射击对手：如果是实弹，对手扣血；如果是空包弹，己方小回合结束，对手回合开始
-   - 射击自己：如果是空包弹，保持回合继续；如果是实弹，自己扣血且己方小回合结束，对手回合开始
-   - 所有子弹射出或有血量归零的一方，大回合结束
-   - 血量归零的一方失败
-   - 大回合开始前，会给玩家和庄家发放不定量道具
-   - 大回合结束后不回收道具，但是最多拥有8个道具，超出部分将不会发放
-   - 在己方小回合未结束前，都可使用道具
+游戏规则（Buckshot Roulette）：
+1. 基本玩法：
+- 游戏每一大回合随机提供2~8枚子弹
+- 弹仓中装有实弹和空包弹
+- 玩家先手开始小回合
+- 玩家小回合：可以选择射击对手或射击自己
+- 射击对手：如果是实弹，对手扣血；如果是空包弹，己方小回合结束，对手回合开始
+- 射击自己：如果是空包弹，保持回合继续；如果是实弹，自己扣血且己方小回合结束，对手回合开始
+- 所有子弹射出或有血量归零的一方，大回合结束
+- 血量归零的一方失败
+- 大回合开始前，会给玩家和庄家发放不定量道具
+- 大回合结束后不回收道具，但是最多拥有8个道具，超出部分将不会发放
+- 在己方小回合未结束前，都可使用道具
 
-2. **道具系统**：
+2. 道具系统：
    - 放大镜：查看当前子弹类型
    - 香烟：回复1点血量
    - 啤酒：弹出当前子弹（相当于浪费一发）
@@ -663,7 +664,7 @@ QString DecisionHelper::buildSystemPrompt()
    - 手铐：对手跳过下一回合
    - 一次性电话：随机告知一发子弹的类型
    - 逆变器：改变当前子弹类型（实弹空包弹互相转换）
-   - 肾上腺素：偷取对手一个随机道具（肾上腺素除外）
+   - 肾上腺素：偷取对手一个道具（肾上腺素除外）
    - 过期药物：50%几率+2血或-1血
 
 请基于概率论和博弈论给出最优策略建议。
@@ -674,17 +675,19 @@ QString DecisionHelper::buildSystemPrompt()
 
 QString DecisionHelper::buildUserPrompt(const GameState &state, const QString &customPrompt)
 {
-    QString prompt = "## 当前游戏状态：\n\n";
+    QString prompt = "当前游戏状态：\n";
 
     // 基本信息
-    prompt += QString("**玩家回合**：是\n");
-    prompt += QString("**血量状态**：玩家 %1血，庄家 %2血\n").arg(state.playerHealth).arg(state.dealerHealth);
-    prompt += QString("**剩余子弹**：实弹 %1发，空包弹 %2发\n").arg(state.remainingLive).arg(state.remainingBlank);
-    prompt += QString("**当前位置**：第 %1 发子弹\n").arg(state.currentPosition);
-    
+    prompt += QString("玩家回合：是\n");
+    prompt += QString("血量状态：玩家 %1/%2血，庄家 %3/%4血\n")
+        .arg(state.playerHealth).arg(state.playerMaxHealth)
+        .arg(state.dealerHealth).arg(state.dealerMaxHealth);
+    prompt += QString("剩余子弹：实弹 %1发，空包弹 %2发\n").arg(state.remainingLive).arg(state.remainingBlank);
+    prompt += QString("当前位置：第 %1 发子弹\n").arg(state.currentPosition);
+
     // 已知子弹信息
     if (!state.knownBullets.isEmpty()) {
-        prompt += "\n**已知子弹信息**：\n";
+        prompt += "\n已知子弹信息：\n";
         for (const auto &bullet : state.knownBullets) {
             if (!bullet.isFired) {
                 prompt += QString("- 第%1发: %2\n").arg(bullet.position).arg(bullet.isLive ? "实弹" : "空包弹");
@@ -693,7 +696,7 @@ QString DecisionHelper::buildUserPrompt(const GameState &state, const QString &c
     }
     
     // 玩家道具
-    prompt += "\n**玩家可用道具**：\n";
+    prompt += "\n玩家可用道具：\n";
     bool hasPlayerItems = false;
     for (const auto &item : state.playerItems) {
         if (!item.isUsed) {
@@ -706,7 +709,7 @@ QString DecisionHelper::buildUserPrompt(const GameState &state, const QString &c
     }
     
     // 庄家道具
-    prompt += "\n**庄家道具**：\n";
+    prompt += "\n庄家道具：\n";
     bool hasDealerItems = false;
     for (const auto &item : state.dealerItems) {
         if (!item.isUsed) {
@@ -720,16 +723,16 @@ QString DecisionHelper::buildUserPrompt(const GameState &state, const QString &c
     
     // 特殊状态
     if (state.handsawActive) {
-        prompt += "\n**特殊状态**：手锯激活（下一发双倍伤害）\n";
+        prompt += "\n特殊状态：手锯激活（下一发双倍伤害）\n";
     }
     
     // 默认策略问题
-    prompt += "\n## 请求分析：\n\n";
+    prompt += "\n请求分析：\n\n";
     prompt += "请基于以上信息，运用概率论和博弈论知识,给出详细的分析和明确的行动建议\n";
     
     // 自定义策略问题
     if (!customPrompt.isEmpty()) {
-        prompt += "\n## 额外策略问题：\n";
+        prompt += "\n额外策略问题：\n";
         prompt += customPrompt + "\n";
     }
     

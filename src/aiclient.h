@@ -46,6 +46,6 @@ private:
     QString m_apiUrl;
     QString m_apiKey;
     QString m_model;
-    
-    static const int REQUEST_TIMEOUT_MS = 60000;  // 60秒超时
+
+    static const int REQUEST_TIMEOUT_MS = 120000;  // 120秒超时
 };

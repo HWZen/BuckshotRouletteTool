@@ -78,7 +78,9 @@ private:
     // 信息记录标签页
     QWidget *m_itemTab;
     QSpinBox *m_playerHealthSpinBox;
+    QSpinBox *m_playerMaxHealthSpinBox;
     QSpinBox *m_dealerHealthSpinBox;
+    QSpinBox *m_dealerMaxHealthSpinBox;
     QGroupBox *m_playerItemsGroup;
     QGroupBox *m_dealerItemsGroup;
     QListWidget *m_playerItemsList;

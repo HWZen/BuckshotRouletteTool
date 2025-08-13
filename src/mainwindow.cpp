@@ -195,20 +195,51 @@ void MainWindow::setupItemManager()
     QGridLayout *healthLayout = new QGridLayout(healthGroup);
     
     // 玩家血量
-    healthLayout->addWidget(new QLabel("玩家血量:"), 0, 0);
+    healthLayout->addWidget(new QLabel("玩家当前血量:"), 0, 0);
     m_playerHealthSpinBox = new QSpinBox;
     m_playerHealthSpinBox->setRange(0, 10);
     m_playerHealthSpinBox->setValue(3);
     m_playerHealthSpinBox->setStyleSheet("QSpinBox { font-weight: bold; color: #28a745; }");
     healthLayout->addWidget(m_playerHealthSpinBox, 0, 1);
     
+    healthLayout->addWidget(new QLabel("玩家最高血量:"), 0, 2);
+    m_playerMaxHealthSpinBox = new QSpinBox;
+    m_playerMaxHealthSpinBox->setRange(1, 10);
+    m_playerMaxHealthSpinBox->setValue(3);
+    m_playerMaxHealthSpinBox->setStyleSheet("QSpinBox { font-weight: bold; color: #28a745; }");
+    healthLayout->addWidget(m_playerMaxHealthSpinBox, 0, 3);
+    
     // 庄家血量
-    healthLayout->addWidget(new QLabel("庄家血量:"), 1, 0);
+    healthLayout->addWidget(new QLabel("庄家当前血量:"), 1, 0);
     m_dealerHealthSpinBox = new QSpinBox;
     m_dealerHealthSpinBox->setRange(0, 10);
     m_dealerHealthSpinBox->setValue(3);
     m_dealerHealthSpinBox->setStyleSheet("QSpinBox { font-weight: bold; color: #dc3545; }");
     healthLayout->addWidget(m_dealerHealthSpinBox, 1, 1);
+    
+    healthLayout->addWidget(new QLabel("庄家最高血量:"), 1, 2);
+    m_dealerMaxHealthSpinBox = new QSpinBox;
+    m_dealerMaxHealthSpinBox->setRange(1, 10);
+    m_dealerMaxHealthSpinBox->setValue(3);
+    m_dealerMaxHealthSpinBox->setStyleSheet("QSpinBox { font-weight: bold; color: #dc3545; }");
+    healthLayout->addWidget(m_dealerMaxHealthSpinBox, 1, 3);
+    
+    // 连接信号，确保当前血量不超过最高血量
+    connect(m_playerMaxHealthSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), 
+            [this](int maxHealth) {
+        if (m_playerHealthSpinBox->value() > maxHealth) {
+            m_playerHealthSpinBox->setValue(maxHealth);
+        }
+        m_playerHealthSpinBox->setMaximum(maxHealth);
+    });
+    
+    connect(m_dealerMaxHealthSpinBox, QOverload<int>::of(&QSpinBox::valueChanged), 
+            [this](int maxHealth) {
+        if (m_dealerHealthSpinBox->value() > maxHealth) {
+            m_dealerHealthSpinBox->setValue(maxHealth);
+        }
+        m_dealerHealthSpinBox->setMaximum(maxHealth);
+    });
     
     mainLayout->addWidget(healthGroup);
     
@@ -458,7 +489,9 @@ void MainWindow::onGetDecisionAdvice()
     state.playerItems = m_itemManager->getPlayerItems();
     state.dealerItems = m_itemManager->getDealerItems();
     state.playerHealth = m_playerHealthSpinBox->value();
+    state.playerMaxHealth = m_playerMaxHealthSpinBox->value();
     state.dealerHealth = m_dealerHealthSpinBox->value();
+    state.dealerMaxHealth = m_dealerMaxHealthSpinBox->value();
     state.isPlayerTurn = true;
     state.handsawActive = false;
     

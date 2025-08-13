@@ -254,7 +254,7 @@ QString AIClient::buildRequestBody(const QString &systemPrompt, const QString &u
     QString modelToUse = m_model.isEmpty() ? "gpt-3.5-turbo" : m_model;
     requestObj["model"] = modelToUse;
     requestObj["messages"] = messages;
-    requestObj["max_tokens"] = 1000;
+    requestObj["max_tokens"] = 2048;
     requestObj["temperature"] = 0.7;
     
     qDebug() << "Request Object Fields:";
@@ -281,7 +281,11 @@ QString AIClient::extractResponse(const QJsonDocument &doc)
             QJsonObject firstChoice = choices[0].toObject();
             if (firstChoice.contains("message")) {
                 QJsonObject message = firstChoice["message"].toObject();
-                return message["content"].toString();
+                auto ret = message["content"].toString();
+                if (message.contains("reasoning_content")) {
+                    ret = QStringLiteral("深度思考：\n%1\n正式回答：\n%2").arg(message["reasoning_content"].toString(), ret);
+                }
+                return ret;
             }
         }
     }

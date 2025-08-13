@@ -18,7 +18,9 @@ public:
         QList<ItemManager::ItemInfo> playerItems;
         QList<ItemManager::ItemInfo> dealerItems;
         int playerHealth;
+        int playerMaxHealth;
         int dealerHealth;
+        int dealerMaxHealth;
         bool isPlayerTurn;
         bool handsawActive; // 手锯是否激活
     };

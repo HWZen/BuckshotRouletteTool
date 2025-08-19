@@ -83,17 +83,29 @@ void MainWindow::setupBulletTracker()
     QGroupBox *roundGroup = new QGroupBox("新回合设置");
     QGridLayout *roundLayout = new QGridLayout(roundGroup);
     
+    // 实弹数量选择
     roundLayout->addWidget(new QLabel("实弹数量:"), 0, 0);
-    m_liveBulletsSpinBox = new QSpinBox;
-    m_liveBulletsSpinBox->setRange(1, 8);
-    m_liveBulletsSpinBox->setValue(2);
-    roundLayout->addWidget(m_liveBulletsSpinBox, 0, 1);
+    m_liveBulletsGroup = new QButtonGroup(this);
+    QHBoxLayout *liveLayout = new QHBoxLayout;
+    for (int i = 0; i < 8; ++i) {
+        m_liveRadios[i] = new QRadioButton(QString::number(i + 1));
+        m_liveBulletsGroup->addButton(m_liveRadios[i], i + 1);
+        liveLayout->addWidget(m_liveRadios[i]);
+    }
+    m_liveRadios[1]->setChecked(true); // 默认选择2发
+    roundLayout->addLayout(liveLayout, 0, 1);
     
+    // 空包弹数量选择
     roundLayout->addWidget(new QLabel("空包弹数量:"), 1, 0);
-    m_blankBulletsSpinBox = new QSpinBox;
-    m_blankBulletsSpinBox->setRange(1, 8);
-    m_blankBulletsSpinBox->setValue(2);
-    roundLayout->addWidget(m_blankBulletsSpinBox, 1, 1);
+    m_blankBulletsGroup = new QButtonGroup(this);
+    QHBoxLayout *blankLayout = new QHBoxLayout;
+    for (int i = 0; i < 8; ++i) {
+        m_blankRadios[i] = new QRadioButton(QString::number(i + 1));
+        m_blankBulletsGroup->addButton(m_blankRadios[i], i + 1);
+        blankLayout->addWidget(m_blankRadios[i]);
+    }
+    m_blankRadios[1]->setChecked(true); // 默认选择2发
+    roundLayout->addLayout(blankLayout, 1, 1);
     
     m_newRoundButton = new QPushButton("开始新回合");
     connect(m_newRoundButton, &QPushButton::clicked, this, &MainWindow::onNewRound);
@@ -425,8 +437,12 @@ void MainWindow::setupItemManager()
 
 void MainWindow::onNewRound()
 {
-    int live = m_liveBulletsSpinBox->value();
-    int blank = m_blankBulletsSpinBox->value();
+    int live = m_liveBulletsGroup->checkedId();
+    int blank = m_blankBulletsGroup->checkedId();
+    
+    // 确保有选择的值，如果没有则使用默认值
+    if (live == -1) live = 2;
+    if (blank == -1) blank = 2;
     
     m_bulletTracker->startNewRound(live, blank);
     m_itemManager->clearAllItems();

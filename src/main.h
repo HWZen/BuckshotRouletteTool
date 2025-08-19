@@ -8,6 +8,8 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QSpinBox>
+#include <QRadioButton>
+#include <QButtonGroup>
 #include <QListWidget>
 #include <QTextEdit>
 #include <QGroupBox>
@@ -60,8 +62,10 @@ private:
     
     // 子弹追踪标签页
     QWidget *m_bulletTab;
-    QSpinBox *m_liveBulletsSpinBox;
-    QSpinBox *m_blankBulletsSpinBox;
+    QButtonGroup *m_liveBulletsGroup;
+    QButtonGroup *m_blankBulletsGroup;
+    QRadioButton *m_liveRadios[8];  // 1-8发实弹选择
+    QRadioButton *m_blankRadios[8]; // 1-8发空包弹选择
     QPushButton *m_newRoundButton;
     QTableWidget *m_bulletTable;
     QLabel *m_remainingLiveLabel;
